@@ -83,7 +83,8 @@ void loop(void) {
     u8g2.firstPage();
     u8g2.setContrast(50);
     
-    do {
+    do 
+    {
         // Display the time
         u8g2.setFont(u8g2_font_fur35_tn);
         u8g2.drawStr(
