@@ -1,16 +1,25 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Keyboard.h>
+#include <FastLED.h>
 #include "accounts.h"
 
 // #define DEBUG
 
-const uint8_t RST_PIN    = 5;     // Configurable, see pin layout above
-const uint8_t SS_PIN     = 2;     // Configurable, see pin layout above
-const uint8_t ID_SIZE    = 4;
-const uint8_t RED_LED    = 7;
-const uint8_t GREEN_LED  = 8;
+#define NUM_LEDS 1
+#define LED_PIN 6
+#define COLOR_ORDER GRB
+const uint8_t RST_PIN     = 5;     // Configurable, see pin layout above
+const uint8_t SS_PIN      = 2;     // Configurable, see pin layout above
+const uint8_t ID_SIZE     = 4;
 
+enum Colors {
+    Red,
+    Green,
+    Blue
+};
+
+CRGB leds[NUM_LEDS];
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 // Initialize the array that will store tag IDs we read
@@ -25,22 +34,30 @@ void setup() {
     Serial.begin(115200);
     #endif
 
-    pinMode(RED_LED, OUTPUT);
-    pinMode(GREEN_LED, OUTPUT);
+    FastLED.addLeds<WS2812, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+    FastLED.setBrightness(100);
     
     SPI.begin();
     rfid.PCD_Init();    // Initialize the MFRC522
 
     checkReader();
 
-    alert(GREEN_LED, 100, 4);
+    alert(Red, 100, 1);
+    alert(Green, 100, 1);
+    alert(Blue, 100, 1);
+    alert(Red, 100, 1);
+    alert(Green, 100, 1);
+    alert(Blue, 100, 1);
+    alert(Red, 100, 1);
+    alert(Green, 100, 1);
+    alert(Blue, 100, 1);
     
     Keyboard.begin();
 }
 
 /*
  * ----------------------------------------------------------------------
- * ----------------------------------------------------------------------
+ * Main Loop
 */
 void loop() {
 
@@ -50,11 +67,11 @@ void loop() {
 
     // Verify that we were able to read a tag
     if ( !rfid.PICC_ReadCardSerial() ) {
-        flashLed(RED_LED, 50);
+        flashLed(Red, 50);
         return;
     }
 
-    alert(GREEN_LED, 50, 6);
+    alert(Green, 50, 6);
     
     MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
     
@@ -81,10 +98,10 @@ void loop() {
         Keyboard.println(account.password);
         #endif
 
-        alert(GREEN_LED, 200, 4);
+        alert(Green, 200, 4);
     }
     else {
-        alert(RED_LED, 200, 4);
+        alert(Red, 200, 4);
     }
 
     #ifdef DEBUG
@@ -103,14 +120,14 @@ void loop() {
     rfid.PCD_StopCrypto1();
 }
 
-/* 
-    findAccount()
-    ----------------------------------------------------------------------
-    Looks up an account in the accounts[] array using the supplied ID
-    (array of bytes).  
-    If a matching entry is found, the index into the accounts[] array is returned.
-    If a matching entry is not found, the function returns -1.
-*/
+/** 
+ *  findAccount()
+ *   ----------------------------------------------------------------------
+ *   Looks up an account in the accounts[] array using the supplied ID
+ *   (array of bytes).  
+ *   If a matching entry is found, the index into the accounts[] array is returned.
+ *   If a matching entry is not found, the function returns -1.
+ */
 int findAccount(byte *id) {
     for (int i = 0; i < sizeof(accounts); i++) {
         if (memcmp(id, accounts[i].id, ID_SIZE) == 0) {
@@ -121,6 +138,9 @@ int findAccount(byte *id) {
     return -1;
 }
 
+/**
+ * Ensure that we can interact with the RFID reader.
+ */
 void checkReader() {
     // Get the reader version. This is an attempt to verify that the reader is online
     // and working.
@@ -129,27 +149,43 @@ void checkReader() {
     if (readerVersion == 0x00 || readerVersion == 0xFF) {
         // Reader did not return expected data.  Communication probably failed.
         // Flash the red LED to indicate to the user that something is wrong.
-        alert(RED_LED, 200, -1);
+        alert(Red, 200, -1);
+    } else {
+        alert(Blue, 500, 4);
     }
 }
 
-void alert(int led, int duration, int times) {
+/**
+ * This function wraps the flashLed() function, and repeats the flash a specified number
+ * of times.  If -1 is specified as the number of times, alert() will repeat the flashing
+ * forever.
+ */
+void alert(Colors color, int duration, int times) {
     if (times == -1) {
         while (true) {
-            flashLed(led, duration);
+            flashLed(color, duration);
         }
     }
     else {
         for (int i = 0; i < times; i++) {
-            flashLed(led, duration);
+            flashLed(color, duration);
         }
     }
 }
 
-void flashLed(uint8_t led, int duration) {
-    digitalWrite(led, HIGH);
+/**
+ * Flash a given color of the RGB Neopixel for the specified duration.
+ * This turns the LED on with the specified color, then turns it off.
+ */
+void flashLed(Colors color, int duration) {
+    leds[0] = CRGB(
+        color == Red ? 255 : 0, 
+        color == Green ? 255 : 0, 
+        color == Blue ? 255 : 0);
+    FastLED.show();
     delay(duration);
-    digitalWrite(led, LOW);
+    leds[0] = CRGB(0, 0, 0);
+    FastLED.show();
     delay(duration);
 }
 
